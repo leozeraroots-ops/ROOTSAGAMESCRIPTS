@@ -1,5 +1,5 @@
 -- ==========================================
--- ROOTSGAME SCRIPT (MINERADOR COM HITBOX - SEM CAMBALHOTA)
+-- ROOTSGAME SCRIPT (MINERADOR + VARIADOS)
 -- ==========================================
 local Players = game:GetService("Players")
 local Workspace = game:WaitForChild("Workspace")
@@ -7,6 +7,8 @@ local GuiService = game:GetService("GuiService")
 local VirtualInputManager = game:GetService("VirtualInputManager")
 local HttpService = game:GetService("HttpService")
 local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local TeleportService = game:GetService("TeleportService")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -43,6 +45,14 @@ local MINE_DISTANCE = 5
 local SAFEZONE_POS = nil
 local priorities = {crystal = 5, diamond = 4, gold = 3, iron = 2, coal = 1}
 local collecting = false
+
+-- VARIADOS STATE
+local isAntiAfk = false
+local isInfJump = false
+local isESP = false
+local isNoclip = false
+local isFly = false
+local espFolder = nil
 
 -- ==========================================
 -- UI DE NOTIFICAÇÃO
@@ -148,8 +158,8 @@ screenGui.ResetOnSpawn = false
 screenGui.Parent = playerGui
 
 local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 380, 0, 250) 
-mainFrame.Position = UDim2.new(0.5, -190, 0.5, -125) 
+mainFrame.Size = UDim2.new(0, 380, 0, 280) 
+mainFrame.Position = UDim2.new(0.5, -190, 0.5, -140) 
 mainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 mainFrame.BorderSizePixel = 0
 mainFrame.Active = true
@@ -265,9 +275,23 @@ local minerCorner = Instance.new("UICorner")
 minerCorner.CornerRadius = UDim.new(0, 6)
 minerCorner.Parent = minerBtn
 
+-- ⭐ BOTÃO VARIADOS
+local variedBtn = Instance.new("TextButton")
+variedBtn.Size = UDim2.new(1, -10, 0, 30)
+variedBtn.Position = UDim2.new(0, 5, 0, 115)
+variedBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+variedBtn.Text = "Variados"
+variedBtn.TextColor3 = Color3.fromRGB(150, 150, 150)
+variedBtn.Font = Enum.Font.GothamBold
+variedBtn.TextSize = 12
+variedBtn.Parent = sidebar
+local variedCorner = Instance.new("UICorner")
+variedCorner.CornerRadius = UDim.new(0, 6)
+variedCorner.Parent = variedBtn
+
 local configBtn = Instance.new("TextButton")
 configBtn.Size = UDim2.new(1, -10, 0, 30)
-configBtn.Position = UDim2.new(0, 5, 0, 115)
+configBtn.Position = UDim2.new(0, 5, 0, 150)
 configBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 configBtn.Text = "Config"
 configBtn.TextColor3 = Color3.fromRGB(150, 150, 150)
@@ -494,7 +518,7 @@ saveBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- --- CONTEÚDO MINER (NOVA ABA) ---
+-- --- CONTEÚDO MINER ---
 local minerPage = Instance.new("Frame")
 minerPage.Size = UDim2.new(1, 0, 1, 0)
 minerPage.BackgroundTransparency = 1
@@ -561,6 +585,227 @@ minerStatsTxt.TextXAlignment = Enum.TextXAlignment.Left
 minerStatsTxt.TextYAlignment = Enum.TextYAlignment.Top
 minerStatsTxt.Parent = minerPage
 
+-- --- CONTEÚDO VARIADOS ⭐ ---
+local variedPage = Instance.new("Frame")
+variedPage.Size = UDim2.new(1, 0, 1, 0)
+variedPage.BackgroundTransparency = 1
+variedPage.Visible = false
+variedPage.Parent = contentArea
+
+local function createVariedBtn(text, pos, color)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0.48, 0, 0, 30)
+    btn.Position = pos
+    btn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    btn.Text = text .. ": OFF"
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.Font = Enum.Font.GothamBold
+    btn.TextSize = 11
+    btn.Parent = variedPage
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 6)
+    corner.Parent = btn
+    return btn
+end
+
+local antiAfkBtn = createVariedBtn("Anti-AFK", UDim2.new(0, 10, 0, 10))
+local infJumpBtn = createVariedBtn("Inf Jump", UDim2.new(0.52, 0, 0, 10))
+local espBtn = createVariedBtn("ESP", UDim2.new(0, 10, 0, 50))
+local noclipBtn = createVariedBtn("Noclip", UDim2.new(0.52, 0, 0, 50))
+local flyBtn = createVariedBtn("Fly", UDim2.new(0, 10, 0, 90))
+local serverHopBtn = createVariedBtn("Server Hop", UDim2.new(0.52, 0, 0, 90))
+
+local speedLabel = Instance.new("TextLabel")
+speedLabel.Size = UDim2.new(1, -20, 0, 20)
+speedLabel.Position = UDim2.new(0, 10, 0, 130)
+speedLabel.BackgroundTransparency = 1
+speedLabel.Text = "Velocidade: 16"
+speedLabel.TextColor3 = Color3.fromRGB(200, 220, 255)
+speedLabel.Font = Enum.Font.GothamBold
+speedLabel.TextSize = 11
+speedLabel.TextXAlignment = Enum.TextXAlignment.Left
+speedLabel.Parent = variedPage
+
+local speedSlider = Instance.new("TextButton")
+speedSlider.Size = UDim2.new(1, -20, 0, 10)
+speedSlider.Position = UDim2.new(0, 10, 0, 150)
+speedSlider.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+speedSlider.Text = ""
+speedSlider.Parent = variedPage
+local sliderCorner = Instance.new("UICorner")
+sliderCorner.CornerRadius = UDim.new(0, 5)
+sliderCorner.Parent = speedSlider
+
+local speedFill = Instance.new("Frame")
+speedFill.Size = UDim2.new(0, 0, 1, 0)
+speedFill.BackgroundColor3 = Color3.fromRGB(40, 180, 100)
+speedFill.BorderSizePixel = 0
+speedFill.Parent = speedSlider
+local fillCorner = Instance.new("UICorner")
+fillCorner.CornerRadius = UDim.new(0, 5)
+fillCorner.Parent = speedFill
+
+local isDraggingSlider = false
+local function updateSpeed(input)
+    local mouseX = input.Position.X
+    local relativeX = math.clamp(mouseX - speedSlider.AbsolutePosition.X, 0, speedSlider.AbsoluteSize.X)
+    local percentage = relativeX / speedSlider.AbsoluteSize.X
+    local speedValue = math.floor(16 + (percentage * 184))
+    
+    speedFill.Size = UDim2.new(percentage, 0, 1, 0)
+    speedLabel.Text = "Velocidade: " .. speedValue
+    
+    local char = player.Character
+    if char then
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        if hum then hum.WalkSpeed = speedValue end
+    end
+end
+
+speedSlider.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        isDraggingSlider = true
+        updateSpeed(input)
+    end
+end)
+speedSlider.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        isDraggingSlider = false
+    end
+end)
+UserInputService.InputChanged:Connect(function(input)
+    if isDraggingSlider and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        updateSpeed(input)
+    end
+end)
+
+local function toggleUI(btn, state)
+    btn.Text = btn.Text:gsub(state and ": OFF" or ": ON", state and ": ON" or ": OFF")
+    btn.BackgroundColor3 = state and Color3.fromRGB(40, 180, 100) or Color3.fromRGB(50, 50, 50)
+end
+
+antiAfkBtn.MouseButton1Click:Connect(function()
+    isAntiAfk = not isAntiAfk
+    toggleUI(antiAfkBtn, isAntiAfk)
+    if isAntiAfk then
+        local vu = game:GetService("VirtualUser")
+        player.Idled:Connect(function()
+            if isAntiAfk then
+                vu:CaptureController()
+                vu:ClickButton2(Vector2.new())
+            end
+        end)
+    end
+end)
+
+infJumpBtn.MouseButton1Click:Connect(function()
+    isInfJump = not isInfJump
+    toggleUI(infJumpBtn, isInfJump)
+end)
+
+UserInputService.JumpRequest:Connect(function()
+    if isInfJump then
+        local char = player.Character
+        local hum = char and char:FindFirstChildOfClass("Humanoid")
+        if hum then hum:ChangeState(Enum.HumanoidStateType.Jumping) end
+    end
+end)
+
+espBtn.MouseButton1Click:Connect(function()
+    isESP = not isESP
+    toggleUI(espBtn, isESP)
+    if isESP then
+        espFolder = Instance.new("Folder", Workspace)
+        espFolder.Name = "ESP_Highlights"
+        for _, obj in pairs(Workspace:GetDescendants()) do
+            if obj:IsA("Model") and obj:FindFirstChild("Humanoid") and not obj:FindFirstChild("ESP_Highlight") then
+                local h = Instance.new("Highlight")
+                h.Name = "ESP_Highlight"
+                h.FillColor = Color3.fromRGB(255, 0, 0)
+                h.OutlineColor = Color3.fromRGB(255, 255, 255)
+                h.Parent = obj
+            end
+        end
+    else
+        if espFolder then espFolder:Destroy() end
+        for _, obj in pairs(Workspace:GetDescendants()) do
+            local h = obj:FindFirstChild("ESP_Highlight")
+            if h then h:Destroy() end
+        end
+    end
+end)
+
+noclipBtn.MouseButton1Click:Connect(function()
+    isNoclip = not isNoclip
+    toggleUI(noclipBtn, isNoclip)
+end)
+
+RunService.Stepped:Connect(function()
+    if isNoclip then
+        local char = player.Character
+        if char then
+            for _, part in pairs(char:GetDescendants()) do
+                if part:IsA("BasePart") and part.CanCollide then part.CanCollide = false end
+            end
+        end
+    end
+end)
+
+flyBtn.MouseButton1Click:Connect(function()
+    isFly = not isFly
+    toggleUI(flyBtn, isFly)
+    local char = player.Character
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    if isFly then
+        if hrp then
+            local bv = Instance.new("BodyVelocity")
+            bv.Name = "Fly_BV"
+            bv.MaxForce = Vector3.new(1e5, 1e5, 1e5)
+            bv.Parent = hrp
+        end
+    else
+        if hrp then
+            local bv = hrp:FindFirstChild("Fly_BV")
+            if bv then bv:Destroy() end
+        end
+    end
+end)
+
+RunService.RenderStepped:Connect(function()
+    if isFly then
+        local char = player.Character
+        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+        local cam = Workspace.CurrentCamera
+        local bv = hrp and hrp:FindFirstChild("Fly_BV")
+        if hrp and cam and bv then
+            local moveDir = Vector3.zero
+            if UserInputService:IsKeyDown(Enum.KeyCode.W) then moveDir += cam.CFrame.LookVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.S) then moveDir -= cam.CFrame.LookVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.A) then moveDir -= cam.CFrame.RightVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.D) then moveDir += cam.CFrame.RightVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.Space) then moveDir += Vector3.new(0, 1, 0) end
+            
+            bv.Velocity = moveDir.Magnitude > 0 and moveDir.Unit * 50 or Vector3.zero
+        end
+    end
+end)
+
+serverHopBtn.MouseButton1Click:Connect(function()
+    serverHopBtn.Text = "Procurando..."
+    local success, servers = pcall(function()
+        return HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"))
+    end)
+    if success and servers and servers.data then
+        for _, server in pairs(servers.data) do
+            if server.playing < server.maxPlayers and server.id ~= game.JobId then
+                TeleportService:TeleportToPlaceInstance(game.PlaceId, server.id, player)
+                break
+            end
+        end
+    end
+    serverHopBtn.Text = "Server Hop: OFF"
+end)
+
 -- --- CONTEÚDO CONFIG ---
 local configPage = Instance.new("Frame")
 configPage.Size = UDim2.new(1, 0, 1, 0)
@@ -626,6 +871,7 @@ local function setTab(activeBtn, activePage)
         [homeBtn] = homePage,
         [waypointBtn] = waypointPage,
         [minerBtn] = minerPage,
+        [variedBtn] = variedPage,
         [configBtn] = configPage,
     }
     
@@ -648,6 +894,7 @@ waypointBtn.MouseButton1Click:Connect(function()
     updateWaypointList()
 end)
 minerBtn.MouseButton1Click:Connect(function() setTab(minerBtn, minerPage) end)
+variedBtn.MouseButton1Click:Connect(function() setTab(variedBtn, variedPage) end)
 configBtn.MouseButton1Click:Connect(function() setTab(configBtn, configPage) end)
 
 -- ==========================================
@@ -756,7 +1003,7 @@ minBtn.MouseButton1Click:Connect(function()
         divider.Visible = false
         minBtn.Text = "+"
     else
-        mainFrame.Size = UDim2.new(0, 380, 0, 250)
+        mainFrame.Size = UDim2.new(0, 380, 0, 280)
         sidebar.Visible = true
         contentArea.Visible = true
         divider.Visible = true
@@ -1062,12 +1309,12 @@ task.spawn(function()
             local targetY = (dist > Config.AttackDistance) and enemy.pos.Y or (enemy.pos.Y + Config.HoverHeight)
             bp.Position = Vector3.new(enemy.pos.X, targetY, enemy.pos.Z)
             
-            -- ⭐ CORREÇÃO DA CAMBALHOTA: Zera rotação e usa CFrame com lookAt suave
+            -- ⭐ CORREÇÃO DA CAMBALHOTA ⭐
             hrp.AssemblyAngularVelocity = Vector3.zero
             hrp.AssemblyLinearVelocity = Vector3.zero
             
             local lookAt = CFrame.new(hrp.Position, Vector3.new(enemy.pos.X, hrp.Position.Y, enemy.pos.Z))
-            hrp.CFrame = CFrame.new(hrp.Position) * CFrame.Angles(0, lookAt.Rotation.Y, 0) -- Mantém só a rotação Y
+            hrp.CFrame = CFrame.new(hrp.Position) * CFrame.Angles(0, lookAt.Rotation.Y, 0)
             
             if dist <= Config.AttackDistance then
                 local tool = char:FindFirstChild(Config.WeaponName) or char:FindFirstChildOfClass("Tool")
@@ -1075,7 +1322,7 @@ task.spawn(function()
                     local handle = tool:FindFirstChild("Handle")
                     if handle then 
                         handle.Size = Vector3.new(12, 12, 12)
-                        handle.CanCollide = false -- ⭐ Evita que a arma empurre o corpo
+                        handle.CanCollide = false 
                     end
                     pcall(function() tool:Activate() end) 
                 end
@@ -1083,7 +1330,6 @@ task.spawn(function()
         else
             statusTxt.Text = "Status: Aguardando Inimigo..."
             targetTxt.Text = "Alvo: -"
-            -- ⭐ Zera rotação quando não tem inimigo também
             if hrp then
                 hrp.AssemblyAngularVelocity = Vector3.zero
             end
@@ -1170,4 +1416,4 @@ topBar.InputEnded:Connect(function(input)
     end
 end)
 
-print("⚔️ RootsGame Script Carregado (Voo Contínuo + Anti-Cambalhota)!")
+print("⚔️ RootsGame Script Carregado (Com Variados + Anti-Cambalhota)!")
