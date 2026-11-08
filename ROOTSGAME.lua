@@ -1,5 +1,5 @@
 -- ==========================================
--- ROOTSGAME SCRIPT (MINERADOR + VARIADOS)
+-- ROOTSGAME SCRIPT (COMPLETO - v3.3)
 -- ==========================================
 local Players = game:GetService("Players")
 local Workspace = game:WaitForChild("Workspace")
@@ -23,8 +23,9 @@ local DefaultConfig = {
     AttackDistance = 18,     
     AttackCooldown = 0.15,
     HoverHeight = 10,        
-    MoveSpeed = 45,
-    MinerSpeed = 25
+    MoveSpeed = 25,          
+    MinerSpeed = 25,
+    WalkSpeed = 16
 }
 
 local Config = table.clone(DefaultConfig)
@@ -32,10 +33,12 @@ local savedWaypoints = {}
 local isRunning = false
 local lastAttackTime = 0
 local isAutoClickerActive = false 
+local isAutoAttackActive = false
 local isHudHidden = false
 local isMinimized = false
 local currentWaypointTarget = nil
 local isGoingToWaypoint = false
+local isAutoCollectActive = false
 
 local isMining = false
 local mineTarget = nil
@@ -46,7 +49,6 @@ local SAFEZONE_POS = nil
 local priorities = {crystal = 5, diamond = 4, gold = 3, iron = 2, coal = 1}
 local collecting = false
 
--- VARIADOS STATE
 local isAntiAfk = false
 local isInfJump = false
 local isESP = false
@@ -158,8 +160,8 @@ screenGui.ResetOnSpawn = false
 screenGui.Parent = playerGui
 
 local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 380, 0, 280) 
-mainFrame.Position = UDim2.new(0.5, -190, 0.5, -140) 
+mainFrame.Size = UDim2.new(0, 380, 0, 300) 
+mainFrame.Position = UDim2.new(0.5, -190, 0.5, -150) 
 mainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 mainFrame.BorderSizePixel = 0
 mainFrame.Active = true
@@ -185,7 +187,7 @@ local title = Instance.new("TextLabel")
 title.Size = UDim2.new(1, -80, 1, 0)
 title.Position = UDim2.new(0, 10, 0, 0)
 title.BackgroundTransparency = 1
-title.Text = "RootsGame Script"
+title.Text = "RootsGame Script v3.3"
 title.TextColor3 = Color3.fromRGB(240, 240, 240)
 title.Font = Enum.Font.GothamBold
 title.TextSize = 13
@@ -236,71 +238,29 @@ sidebarFix.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 sidebarFix.BorderSizePixel = 0
 sidebarFix.Parent = sidebar
 
-local homeBtn = Instance.new("TextButton")
-homeBtn.Size = UDim2.new(1, -10, 0, 30)
-homeBtn.Position = UDim2.new(0, 5, 0, 10)
+local function createSideBtn(text, y)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, -10, 0, 30)
+    btn.Position = UDim2.new(0, 5, 0, y)
+    btn.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+    btn.Text = text
+    btn.TextColor3 = Color3.fromRGB(150, 150, 150)
+    btn.Font = Enum.Font.GothamBold
+    btn.TextSize = 12
+    btn.Parent = sidebar
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 6)
+    corner.Parent = btn
+    return btn
+end
+
+local homeBtn = createSideBtn("Principal", 10)
 homeBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-homeBtn.Text = "Principal"
 homeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-homeBtn.Font = Enum.Font.GothamBold
-homeBtn.TextSize = 12
-homeBtn.Parent = sidebar
-local homeCorner = Instance.new("UICorner")
-homeCorner.CornerRadius = UDim.new(0, 6)
-homeCorner.Parent = homeBtn
-
-local waypointBtn = Instance.new("TextButton")
-waypointBtn.Size = UDim2.new(1, -10, 0, 30)
-waypointBtn.Position = UDim2.new(0, 5, 0, 45)
-waypointBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-waypointBtn.Text = "Waypoints"
-waypointBtn.TextColor3 = Color3.fromRGB(150, 150, 150)
-waypointBtn.Font = Enum.Font.GothamBold
-waypointBtn.TextSize = 12
-waypointBtn.Parent = sidebar
-local waypointCorner = Instance.new("UICorner")
-waypointCorner.CornerRadius = UDim.new(0, 6)
-waypointCorner.Parent = waypointBtn
-
-local minerBtn = Instance.new("TextButton")
-minerBtn.Size = UDim2.new(1, -10, 0, 30)
-minerBtn.Position = UDim2.new(0, 5, 0, 80)
-minerBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-minerBtn.Text = "Miner"
-minerBtn.TextColor3 = Color3.fromRGB(150, 150, 150)
-minerBtn.Font = Enum.Font.GothamBold
-minerBtn.TextSize = 12
-minerBtn.Parent = sidebar
-local minerCorner = Instance.new("UICorner")
-minerCorner.CornerRadius = UDim.new(0, 6)
-minerCorner.Parent = minerBtn
-
--- ⭐ BOTÃO VARIADOS
-local variedBtn = Instance.new("TextButton")
-variedBtn.Size = UDim2.new(1, -10, 0, 30)
-variedBtn.Position = UDim2.new(0, 5, 0, 115)
-variedBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-variedBtn.Text = "Variados"
-variedBtn.TextColor3 = Color3.fromRGB(150, 150, 150)
-variedBtn.Font = Enum.Font.GothamBold
-variedBtn.TextSize = 12
-variedBtn.Parent = sidebar
-local variedCorner = Instance.new("UICorner")
-variedCorner.CornerRadius = UDim.new(0, 6)
-variedCorner.Parent = variedBtn
-
-local configBtn = Instance.new("TextButton")
-configBtn.Size = UDim2.new(1, -10, 0, 30)
-configBtn.Position = UDim2.new(0, 5, 0, 150)
-configBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-configBtn.Text = "Config"
-configBtn.TextColor3 = Color3.fromRGB(150, 150, 150)
-configBtn.Font = Enum.Font.GothamBold
-configBtn.TextSize = 12
-configBtn.Parent = sidebar
-local configCorner = Instance.new("UICorner")
-configCorner.CornerRadius = UDim.new(0, 6)
-configCorner.Parent = configBtn
+local waypointBtn = createSideBtn("Waypoints", 45)
+local minerBtn = createSideBtn("Miner", 80)
+local variedBtn = createSideBtn("Variados", 115)
+local configBtn = createSideBtn("Config", 150)
 
 local contentArea = Instance.new("Frame")
 contentArea.Size = UDim2.new(1, -100, 1, -31)
@@ -316,7 +276,7 @@ homePage.Parent = contentArea
 
 local statusTxt = Instance.new("TextLabel")
 statusTxt.Size = UDim2.new(1, -20, 0, 20)
-statusTxt.Position = UDim2.new(0, 10, 0, 10)
+statusTxt.Position = UDim2.new(0, 10, 0, 5)
 statusTxt.BackgroundTransparency = 1
 statusTxt.Text = "Status: Aguardando..."
 statusTxt.TextColor3 = Color3.fromRGB(200, 220, 255)
@@ -327,7 +287,7 @@ statusTxt.Parent = homePage
 
 local targetTxt = Instance.new("TextLabel")
 targetTxt.Size = UDim2.new(1, -20, 0, 20)
-targetTxt.Position = UDim2.new(0, 10, 0, 30)
+targetTxt.Position = UDim2.new(0, 10, 0, 25)
 targetTxt.BackgroundTransparency = 1
 targetTxt.Text = "Alvo: -"
 targetTxt.TextColor3 = Color3.fromRGB(150, 150, 150)
@@ -338,7 +298,7 @@ targetTxt.Parent = homePage
 
 local toggleBtn = Instance.new("TextButton")
 toggleBtn.Size = UDim2.new(1, -20, 0, 30)
-toggleBtn.Position = UDim2.new(0, 10, 0, 60)
+toggleBtn.Position = UDim2.new(0, 10, 0, 50)
 toggleBtn.BackgroundColor3 = Color3.fromRGB(40, 180, 100)
 toggleBtn.Text = "INICIAR VOO"
 toggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -349,9 +309,22 @@ local btnCorner = Instance.new("UICorner")
 btnCorner.CornerRadius = UDim.new(0, 6)
 btnCorner.Parent = toggleBtn
 
+local autoAttackBtn = Instance.new("TextButton")
+autoAttackBtn.Size = UDim2.new(1, -20, 0, 30)
+autoAttackBtn.Position = UDim2.new(0, 10, 0, 88) 
+autoAttackBtn.BackgroundColor3 = Color3.fromRGB(180, 50, 50) 
+autoAttackBtn.Text = "AUTO ATACAR: OFF"
+autoAttackBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+autoAttackBtn.Font = Enum.Font.GothamBold
+autoAttackBtn.TextSize = 11
+autoAttackBtn.Parent = homePage
+local autoAttackCorner = Instance.new("UICorner")
+autoAttackCorner.CornerRadius = UDim.new(0, 6)
+autoAttackCorner.Parent = autoAttackBtn
+
 local clickerBtn = Instance.new("TextButton")
 clickerBtn.Size = UDim2.new(1, -20, 0, 30)
-clickerBtn.Position = UDim2.new(0, 10, 0, 98) 
+clickerBtn.Position = UDim2.new(0, 10, 0, 126) 
 clickerBtn.BackgroundColor3 = Color3.fromRGB(200, 150, 50) 
 clickerBtn.Text = "AUTO CLICK: OFF"
 clickerBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -362,9 +335,22 @@ local clickerCorner = Instance.new("UICorner")
 clickerCorner.CornerRadius = UDim.new(0, 6)
 clickerCorner.Parent = clickerBtn
 
+local autoCollectBtn = Instance.new("TextButton")
+autoCollectBtn.Size = UDim2.new(1, -20, 0, 30)
+autoCollectBtn.Position = UDim2.new(0, 10, 0, 164) 
+autoCollectBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50) 
+autoCollectBtn.Text = "AUTO COLETA: OFF"
+autoCollectBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+autoCollectBtn.Font = Enum.Font.GothamBold
+autoCollectBtn.TextSize = 11
+autoCollectBtn.Parent = homePage
+local autoCollectCorner = Instance.new("UICorner")
+autoCollectCorner.CornerRadius = UDim.new(0, 6)
+autoCollectCorner.Parent = autoCollectBtn
+
 local hideHudBtn = Instance.new("TextButton")
 hideHudBtn.Size = UDim2.new(1, -20, 0, 30)
-hideHudBtn.Position = UDim2.new(0, 10, 0, 136) 
+hideHudBtn.Position = UDim2.new(0, 10, 0, 202) 
 hideHudBtn.BackgroundColor3 = Color3.fromRGB(150, 50, 150) 
 hideHudBtn.Text = "OCULTAR HABILIDADES"
 hideHudBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -377,7 +363,7 @@ hideHudCorner.Parent = hideHudBtn
 
 local helpTxt = Instance.new("TextLabel")
 helpTxt.Size = UDim2.new(1, -20, 0, 20)
-helpTxt.Position = UDim2.new(0, 10, 0, 175)
+helpTxt.Position = UDim2.new(0, 10, 0, 238)
 helpTxt.BackgroundTransparency = 1
 helpTxt.Text = "Arraste o quadrado para o botão verde."
 helpTxt.TextColor3 = Color3.fromRGB(120, 120, 120)
@@ -585,17 +571,17 @@ minerStatsTxt.TextXAlignment = Enum.TextXAlignment.Left
 minerStatsTxt.TextYAlignment = Enum.TextYAlignment.Top
 minerStatsTxt.Parent = minerPage
 
--- --- CONTEÚDO VARIADOS ⭐ ---
+-- --- CONTEÚDO VARIADOS ---
 local variedPage = Instance.new("Frame")
 variedPage.Size = UDim2.new(1, 0, 1, 0)
 variedPage.BackgroundTransparency = 1
 variedPage.Visible = false
 variedPage.Parent = contentArea
 
-local function createVariedBtn(text, pos, color)
+local function createVarBtn(text, posX, posY)
     local btn = Instance.new("TextButton")
     btn.Size = UDim2.new(0.48, 0, 0, 30)
-    btn.Position = pos
+    btn.Position = UDim2.new(posX, 0, 0, posY)
     btn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
     btn.Text = text .. ": OFF"
     btn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -608,18 +594,18 @@ local function createVariedBtn(text, pos, color)
     return btn
 end
 
-local antiAfkBtn = createVariedBtn("Anti-AFK", UDim2.new(0, 10, 0, 10))
-local infJumpBtn = createVariedBtn("Inf Jump", UDim2.new(0.52, 0, 0, 10))
-local espBtn = createVariedBtn("ESP", UDim2.new(0, 10, 0, 50))
-local noclipBtn = createVariedBtn("Noclip", UDim2.new(0.52, 0, 0, 50))
-local flyBtn = createVariedBtn("Fly", UDim2.new(0, 10, 0, 90))
-local serverHopBtn = createVariedBtn("Server Hop", UDim2.new(0.52, 0, 0, 90))
+local antiAfkBtn = createVarBtn("Anti-AFK", 0.02, 10)
+local infJumpBtn = createVarBtn("Inf Jump", 0.52, 10)
+local espBtn = createVarBtn("ESP", 0.02, 50)
+local noclipBtn = createVarBtn("Noclip", 0.52, 50)
+local flyBtn = createVarBtn("Fly", 0.02, 90)
+local serverHopBtn = createVarBtn("Server Hop", 0.52, 90)
 
 local speedLabel = Instance.new("TextLabel")
 speedLabel.Size = UDim2.new(1, -20, 0, 20)
 speedLabel.Position = UDim2.new(0, 10, 0, 130)
 speedLabel.BackgroundTransparency = 1
-speedLabel.Text = "Velocidade: 16"
+speedLabel.Text = "Velocidade: " .. Config.WalkSpeed
 speedLabel.TextColor3 = Color3.fromRGB(200, 220, 255)
 speedLabel.Font = Enum.Font.GothamBold
 speedLabel.TextSize = 11
@@ -654,6 +640,7 @@ local function updateSpeed(input)
     
     speedFill.Size = UDim2.new(percentage, 0, 1, 0)
     speedLabel.Text = "Velocidade: " .. speedValue
+    Config.WalkSpeed = speedValue
     
     local char = player.Character
     if char then
@@ -920,7 +907,7 @@ toggleBtn.MouseButton1Click:Connect(function()
             if bv then bv:Destroy() end
             local hum = char:FindFirstChildOfClass("Humanoid")
             if hum then 
-                hum.WalkSpeed = 16 
+                hum.WalkSpeed = Config.WalkSpeed
                 hum.PlatformStand = false
             end
             for _, part in pairs(char:GetDescendants()) do
@@ -930,16 +917,16 @@ toggleBtn.MouseButton1Click:Connect(function()
     end
 end)
 
-hideHudBtn.MouseButton1Click:Connect(function()
-    isHudHidden = not isHudHidden
-    local hotbar = playerGui:FindFirstChild("Hotbar")
-    if hotbar then hotbar.Enabled = not isHudHidden end
-    local touchGui = playerGui:FindFirstChild("TouchGui")
-    if touchGui then
-        local touchFrame = touchGui:FindFirstChild("TouchControlFrame")
-        if touchFrame then touchFrame.Visible = not isHudHidden end
+-- ⭐ NOVO BOTÃO: AUTO ATACAR ⭐
+autoAttackBtn.MouseButton1Click:Connect(function()
+    isAutoAttackActive = not isAutoAttackActive
+    if isAutoAttackActive then
+        autoAttackBtn.Text = "AUTO ATACAR: ON"
+        autoAttackBtn.BackgroundColor3 = Color3.fromRGB(40, 180, 100)
+    else
+        autoAttackBtn.Text = "AUTO ATACAR: OFF"
+        autoAttackBtn.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
     end
-    hideHudBtn.Text = isHudHidden and "MOSTRAR HABILIDADES" or "OCULTAR HABILIDADES"
 end)
 
 clickerBtn.MouseButton1Click:Connect(function()
@@ -953,6 +940,29 @@ clickerBtn.MouseButton1Click:Connect(function()
         clickerBtn.BackgroundColor3 = Color3.fromRGB(200, 150, 50)
         targetBox.BackgroundColor3 = Color3.fromRGB(255, 0, 0) 
     end
+end)
+
+autoCollectBtn.MouseButton1Click:Connect(function()
+    isAutoCollectActive = not isAutoCollectActive
+    if isAutoCollectActive then
+        autoCollectBtn.Text = "AUTO COLETA: ON"
+        autoCollectBtn.BackgroundColor3 = Color3.fromRGB(40, 180, 100)
+    else
+        autoCollectBtn.Text = "AUTO COLETA: OFF"
+        autoCollectBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+    end
+end)
+
+hideHudBtn.MouseButton1Click:Connect(function()
+    isHudHidden = not isHudHidden
+    local hotbar = playerGui:FindFirstChild("Hotbar")
+    if hotbar then hotbar.Enabled = not isHudHidden end
+    local touchGui = playerGui:FindFirstChild("TouchGui")
+    if touchGui then
+        local touchFrame = touchGui:FindFirstChild("TouchControlFrame")
+        if touchFrame then touchFrame.Visible = not isHudHidden end
+    end
+    hideHudBtn.Text = isHudHidden and "MOSTRAR HABILIDADES" or "OCULTAR HABILIDADES"
 end)
 
 toggleMinerBtn.MouseButton1Click:Connect(function()
@@ -1003,7 +1013,7 @@ minBtn.MouseButton1Click:Connect(function()
         divider.Visible = false
         minBtn.Text = "+"
     else
-        mainFrame.Size = UDim2.new(0, 380, 0, 280)
+        mainFrame.Size = UDim2.new(0, 380, 0, 300)
         sidebar.Visible = true
         contentArea.Visible = true
         divider.Visible = true
@@ -1179,6 +1189,48 @@ task.spawn(function()
     end
 end)
 
+task.spawn(function()
+    while task.wait(0.1) do
+        local char = player.Character
+        local hum = char and char:FindFirstChildOfClass("Humanoid")
+        if hum and hum.WalkSpeed ~= Config.WalkSpeed and not isMining and not isRunning then
+            hum.WalkSpeed = Config.WalkSpeed
+        end
+    end
+end)
+
+task.spawn(function()
+    while task.wait(0.5) do
+        if isAutoCollectActive then
+            pcall(function()
+                VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, game)
+                task.wait(0.1)
+                VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, game)
+            end)
+        end
+    end
+end)
+
+-- ⭐ LOOP DO AUTO ATACAR ⭐
+task.spawn(function()
+    while task.wait(0.2) do
+        if isAutoAttackActive then
+            local char = player.Character
+            if char then
+                local tool = char:FindFirstChild(Config.WeaponName) or char:FindFirstChildOfClass("Tool")
+                if tool then
+                    local handle = tool:FindFirstChild("Handle")
+                    if handle then 
+                        handle.Size = Vector3.new(15, 15, 15)
+                        handle.CanCollide = false
+                    end
+                    pcall(function() tool:Activate() end)
+                end
+            end
+        end
+    end
+end)
+
 -- Loop Principal (Farm / Mineração)
 task.spawn(function()
     while task.wait(0.15) do 
@@ -1264,7 +1316,7 @@ task.spawn(function()
                             humanoid.WalkSpeed = Config.MinerSpeed
                             humanoid:MoveTo(SAFEZONE_POS)
                         else
-                            humanoid.WalkSpeed = 16
+                            humanoid.WalkSpeed = Config.WalkSpeed
                             humanoid:MoveTo(hrp.Position)
                         end
                     end
@@ -1284,8 +1336,8 @@ task.spawn(function()
 
         local enemy = getDungeonEnemy()
         local bp = hrp:FindFirstChild("AutoHover")
+        local bv = hrp:FindFirstChild("AutoFly")
 
-        -- ⭐ VOO CONTÍNUO ⭐
         humanoid.PlatformStand = true 
         for _, part in pairs(char:GetDescendants()) do
             if part:IsA("BasePart") then part.CanCollide = false end
@@ -1297,19 +1349,29 @@ task.spawn(function()
             
             local dist = (hrp.Position - enemy.pos).Magnitude
             
-            if not bp then
-                bp = Instance.new("BodyPosition")
-                bp.Name = "AutoHover"
-                bp.MaxForce = Vector3.new(50000, 50000, 50000)
-                bp.P = 10000
-                bp.D = 1000
-                bp.Parent = hrp
+            if dist > Config.AttackDistance then
+                if bp then bp:Destroy() end
+                if not bv then
+                    bv = Instance.new("BodyVelocity")
+                    bv.Name = "AutoFly"
+                    bv.MaxForce = Vector3.new(50000, 50000, 50000)
+                    bv.Parent = hrp
+                end
+                local direction = (enemy.pos - hrp.Position).Unit
+                bv.Velocity = direction * Config.MoveSpeed 
+            else
+                if bv then bv:Destroy() end
+                if not bp then
+                    bp = Instance.new("BodyPosition")
+                    bp.Name = "AutoHover"
+                    bp.MaxForce = Vector3.new(50000, 50000, 50000)
+                    bp.P = 10000
+                    bp.D = 1000
+                    bp.Parent = hrp
+                end
+                bp.Position = Vector3.new(hrp.Position.X, enemy.pos.Y + Config.HoverHeight, hrp.Position.Z)
             end
             
-            local targetY = (dist > Config.AttackDistance) and enemy.pos.Y or (enemy.pos.Y + Config.HoverHeight)
-            bp.Position = Vector3.new(enemy.pos.X, targetY, enemy.pos.Z)
-            
-            -- ⭐ CORREÇÃO DA CAMBALHOTA ⭐
             hrp.AssemblyAngularVelocity = Vector3.zero
             hrp.AssemblyLinearVelocity = Vector3.zero
             
@@ -1330,6 +1392,7 @@ task.spawn(function()
         else
             statusTxt.Text = "Status: Aguardando Inimigo..."
             targetTxt.Text = "Alvo: -"
+            if bv then bv:Destroy() end
             if hrp then
                 hrp.AssemblyAngularVelocity = Vector3.zero
             end
@@ -1381,7 +1444,7 @@ task.spawn(function()
             end
 
             humanoid.PlatformStand = false
-            humanoid.WalkSpeed = 16
+            humanoid.WalkSpeed = Config.WalkSpeed
             
             hrp.CFrame = CFrame.new(hrp.Position.X, currentWaypointTarget.Y + 3, hrp.Position.Z)
             
@@ -1391,7 +1454,6 @@ task.spawn(function()
     end
 end)
 
--- Arrastar HUD
 local draggingHud = false
 local dragHudStart, startHudPos
 
@@ -1416,4 +1478,4 @@ topBar.InputEnded:Connect(function(input)
     end
 end)
 
-print("⚔️ RootsGame Script Carregado (Com Variados + Anti-Cambalhota)!")
+print("⚔️ RootsGame Script v3.3 Carregado (Auto Atacar + Auto Coleta + Speed Fixo)!")
