@@ -1,5 +1,5 @@
 -- ==========================================
--- ROOTSGAME SCRIPT (COMPLETO - v3.3)
+-- ROOTSGAME SCRIPT (COMPLETO - v3.4)
 -- ==========================================
 local Players = game:GetService("Players")
 local Workspace = game:WaitForChild("Workspace")
@@ -160,8 +160,8 @@ screenGui.ResetOnSpawn = false
 screenGui.Parent = playerGui
 
 local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 380, 0, 300) 
-mainFrame.Position = UDim2.new(0.5, -190, 0.5, -150) 
+mainFrame.Size = UDim2.new(0, 380, 0, 330)
+mainFrame.Position = UDim2.new(0.5, -190, 0.5, -165) 
 mainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 mainFrame.BorderSizePixel = 0
 mainFrame.Active = true
@@ -187,7 +187,7 @@ local title = Instance.new("TextLabel")
 title.Size = UDim2.new(1, -80, 1, 0)
 title.Position = UDim2.new(0, 10, 0, 0)
 title.BackgroundTransparency = 1
-title.Text = "RootsGame Script v3.3"
+title.Text = "RootsGame Script v3.4"
 title.TextColor3 = Color3.fromRGB(240, 240, 240)
 title.Font = Enum.Font.GothamBold
 title.TextSize = 13
@@ -309,9 +309,69 @@ local btnCorner = Instance.new("UICorner")
 btnCorner.CornerRadius = UDim.new(0, 6)
 btnCorner.Parent = toggleBtn
 
+local heightLabel = Instance.new("TextLabel")
+heightLabel.Size = UDim2.new(1, -20, 0, 20)
+heightLabel.Position = UDim2.new(0, 10, 0, 85)
+heightLabel.BackgroundTransparency = 1
+heightLabel.Text = "Altura do Voo: " .. Config.HoverHeight
+heightLabel.TextColor3 = Color3.fromRGB(200, 220, 255)
+heightLabel.Font = Enum.Font.GothamBold
+heightLabel.TextSize = 11
+heightLabel.TextXAlignment = Enum.TextXAlignment.Left
+heightLabel.Parent = homePage
+
+local heightSlider = Instance.new("TextButton")
+heightSlider.Size = UDim2.new(1, -20, 0, 10)
+heightSlider.Position = UDim2.new(0, 10, 0, 105)
+heightSlider.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+heightSlider.Text = ""
+heightSlider.Parent = homePage
+local hSliderCorner = Instance.new("UICorner")
+hSliderCorner.CornerRadius = UDim.new(0, 5)
+hSliderCorner.Parent = heightSlider
+
+local heightFill = Instance.new("Frame")
+heightFill.Size = UDim2.new(Config.HoverHeight/40, 0, 1, 0)
+heightFill.BackgroundColor3 = Color3.fromRGB(40, 180, 100)
+heightFill.BorderSizePixel = 0
+heightFill.Parent = heightSlider
+local hFillCorner = Instance.new("UICorner")
+hFillCorner.CornerRadius = UDim.new(0, 5)
+hFillCorner.Parent = heightFill
+
+local isDraggingHeight = false
+local function updateHeight(input)
+    local mouseX = input.Position.X
+    local relativeX = math.clamp(mouseX - heightSlider.AbsolutePosition.X, 0, heightSlider.AbsoluteSize.X)
+    local percentage = relativeX / heightSlider.AbsoluteSize.X
+    local heightValue = math.floor(percentage * 40)
+    if heightValue < 1 then heightValue = 1 end
+    
+    heightFill.Size = UDim2.new(percentage, 0, 1, 0)
+    heightLabel.Text = "Altura do Voo: " .. heightValue
+    Config.HoverHeight = heightValue
+end
+
+heightSlider.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        isDraggingHeight = true
+        updateHeight(input)
+    end
+end)
+heightSlider.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        isDraggingHeight = false
+    end
+end)
+UserInputService.InputChanged:Connect(function(input)
+    if isDraggingHeight and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        updateHeight(input)
+    end
+end)
+
 local autoAttackBtn = Instance.new("TextButton")
 autoAttackBtn.Size = UDim2.new(1, -20, 0, 30)
-autoAttackBtn.Position = UDim2.new(0, 10, 0, 88) 
+autoAttackBtn.Position = UDim2.new(0, 10, 0, 125) 
 autoAttackBtn.BackgroundColor3 = Color3.fromRGB(180, 50, 50) 
 autoAttackBtn.Text = "AUTO ATACAR: OFF"
 autoAttackBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -324,7 +384,7 @@ autoAttackCorner.Parent = autoAttackBtn
 
 local clickerBtn = Instance.new("TextButton")
 clickerBtn.Size = UDim2.new(1, -20, 0, 30)
-clickerBtn.Position = UDim2.new(0, 10, 0, 126) 
+clickerBtn.Position = UDim2.new(0, 10, 0, 163) 
 clickerBtn.BackgroundColor3 = Color3.fromRGB(200, 150, 50) 
 clickerBtn.Text = "AUTO CLICK: OFF"
 clickerBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -337,7 +397,7 @@ clickerCorner.Parent = clickerBtn
 
 local autoCollectBtn = Instance.new("TextButton")
 autoCollectBtn.Size = UDim2.new(1, -20, 0, 30)
-autoCollectBtn.Position = UDim2.new(0, 10, 0, 164) 
+autoCollectBtn.Position = UDim2.new(0, 10, 0, 201) 
 autoCollectBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50) 
 autoCollectBtn.Text = "AUTO COLETA: OFF"
 autoCollectBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -350,7 +410,7 @@ autoCollectCorner.Parent = autoCollectBtn
 
 local hideHudBtn = Instance.new("TextButton")
 hideHudBtn.Size = UDim2.new(1, -20, 0, 30)
-hideHudBtn.Position = UDim2.new(0, 10, 0, 202) 
+hideHudBtn.Position = UDim2.new(0, 10, 0, 239) 
 hideHudBtn.BackgroundColor3 = Color3.fromRGB(150, 50, 150) 
 hideHudBtn.Text = "OCULTAR HABILIDADES"
 hideHudBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -363,7 +423,7 @@ hideHudCorner.Parent = hideHudBtn
 
 local helpTxt = Instance.new("TextLabel")
 helpTxt.Size = UDim2.new(1, -20, 0, 20)
-helpTxt.Position = UDim2.new(0, 10, 0, 238)
+helpTxt.Position = UDim2.new(0, 10, 0, 275)
 helpTxt.BackgroundTransparency = 1
 helpTxt.Text = "Arraste o quadrado para o botão verde."
 helpTxt.TextColor3 = Color3.fromRGB(120, 120, 120)
@@ -917,7 +977,6 @@ toggleBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- ⭐ NOVO BOTÃO: AUTO ATACAR ⭐
 autoAttackBtn.MouseButton1Click:Connect(function()
     isAutoAttackActive = not isAutoAttackActive
     if isAutoAttackActive then
@@ -1013,7 +1072,7 @@ minBtn.MouseButton1Click:Connect(function()
         divider.Visible = false
         minBtn.Text = "+"
     else
-        mainFrame.Size = UDim2.new(0, 380, 0, 300)
+        mainFrame.Size = UDim2.new(0, 380, 0, 330)
         sidebar.Visible = true
         contentArea.Visible = true
         divider.Visible = true
@@ -1211,7 +1270,6 @@ task.spawn(function()
     end
 end)
 
--- ⭐ LOOP DO AUTO ATACAR ⭐
 task.spawn(function()
     while task.wait(0.2) do
         if isAutoAttackActive then
@@ -1454,6 +1512,7 @@ task.spawn(function()
     end
 end)
 
+-- Arrastar HUD
 local draggingHud = false
 local dragHudStart, startHudPos
 
@@ -1478,4 +1537,4 @@ topBar.InputEnded:Connect(function(input)
     end
 end)
 
-print("⚔️ RootsGame Script v3.3 Carregado (Auto Atacar + Auto Coleta + Speed Fixo)!")
+print("⚔️ RootsGame Script v3.4 Carregado (Com Barra de Altura + Auto Atacar)!")
