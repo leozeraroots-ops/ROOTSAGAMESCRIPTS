@@ -20,9 +20,9 @@ local SAVE_FILE = "RootsGame_Data.txt"
 -- CONFIGURAÇÕES PADRÃO
 local DefaultConfig = {
     WeaponName = "Pumpkin Reaper Greatsword",
-    AttackDistance = 15,
+    AttackDistance = 18,     
     AttackCooldown = 0.15,
-    HoverHeight = 10,
+    HoverHeight = 10,        
     MoveSpeed = 45,
     MinerSpeed = 25
 }
@@ -43,7 +43,7 @@ local isMining = false
 local mineTarget = nil
 local minedCounts = {crystal = 0, diamond = 0, gold = 0, iron = 0, coal = 0}
 local lastMineTime = 0
-local MINE_DISTANCE = 5 -- ⭐ Diminuído de 8 para 5 (Chega mais perto)
+local MINE_DISTANCE = 5
 local SAFEZONE_POS = nil
 local priorities = {crystal = 5, diamond = 4, gold = 3, iron = 2, coal = 1}
 local collecting = false
@@ -125,6 +125,7 @@ local function loadAllData()
                 for k, v in pairs(decoded.Config) do
                     if Config[k] ~= nil then Config[k] = v end
                 end
+                if Config.AttackDistance < 15 then Config.AttackDistance = 18 end
             end
             
             if decoded.Waypoints then
@@ -832,7 +833,22 @@ local function getDungeonEnemy()
             for _, child in pairs(folder:GetChildren()) do
                 if child:IsA("Model") or child:IsA("BasePart") then
                     if not child.Name:find("FX") and not child.Name:find("Sound") then
-                        local enemyPos = child:IsA("Model") and child:GetPivot().Position or child.Position
+                        local enemyPos
+                        if child:IsA("Model") then
+                            local highestY = -math.huge
+                            enemyPos = child:GetPivot().Position
+                            for _, p in pairs(child:GetDescendants()) do
+                                if p:IsA("BasePart") then
+                                    if p.Position.Y > highestY then
+                                        highestY = p.Position.Y
+                                        enemyPos = p.Position
+                                    end
+                                end
+                            end
+                        else
+                            enemyPos = child.Position
+                        end
+
                         local dist = (hrp.Position - enemyPos).Magnitude
                         if dist < shortest then
                             shortest = dist
@@ -873,7 +889,6 @@ local function getClosestOre()
     return nearest
 end
 
--- ⭐ FUNÇÃO DE COLETA AUTOMÁTICA ⭐
 local function TryCollect()
     if collecting then return end
     collecting = true
@@ -899,14 +914,12 @@ local function TryCollect()
     end)
 end
 
--- AUTO SAVE A CADA 30 SEGUNDOS
 task.spawn(function()
     while task.wait(30) do
         saveAllData()
     end
 end)
 
--- Auto Clicker
 task.spawn(function()
     while task.wait(4) do 
         if isAutoClickerActive then
@@ -929,7 +942,6 @@ end)
 -- Loop Principal (Farm / Mineração)
 task.spawn(function()
     while task.wait(0.15) do 
-        -- Prioridade 1: Mineração
         if isMining then
             local char = player.Character
             local humanoid = char and char:FindFirstChildOfClass("Humanoid")
@@ -982,7 +994,6 @@ task.spawn(function()
                             lastMineTime = tick()
                             local tool = char:FindFirstChildOfClass("Tool")
                             if tool and tool.Name:lower():find("pick") then
-                                -- ⭐ AUMENTA A HITBOX DA PICARETA ⭐
                                 local handle = tool:FindFirstChild("Handle")
                                 if handle then handle.Size = Vector3.new(8, 8, 8) end
                                 
@@ -1022,7 +1033,6 @@ task.spawn(function()
             end
         end
 
-        -- Prioridade 2: Farm de Monstros
         if not isRunning then continue end
         if isGoingToWaypoint then continue end 
 
@@ -1035,55 +1045,53 @@ task.spawn(function()
         local enemy = getDungeonEnemy()
         local bp = hrp:FindFirstChild("AutoHover")
 
+        -- ⭐ VOO CONTÍNUO ⭐
+        -- O personagem fica com PlatformStand true o tempo todo para não cair e nem subir/descer
+        humanoid.PlatformStand = true 
+        for _, part in pairs(char:GetDescendants()) do
+            if part:IsA("BasePart") then part.CanCollide = false end
+        end
+
         if enemy then
             statusTxt.Text = "Status: Voando para o Alvo"
             targetTxt.Text = "Alvo: " .. tostring(enemy.name)
             
             local dist = (hrp.Position - enemy.pos).Magnitude
             
-            if dist > Config.AttackDistance then
-                for _, part in pairs(char:GetDescendants()) do
-                    if part:IsA("BasePart") then part.CanCollide = false end
-                end
-                if bp then bp:Destroy() end 
-                humanoid.WalkSpeed = Config.MoveSpeed
-                humanoid:MoveTo(enemy.pos) 
-            else
-                for _, part in pairs(char:GetDescendants()) do
-                    if part:IsA("BasePart") then part.CanCollide = true end
-                end
-                humanoid.WalkSpeed = 0 
-                if not bp then
-                    bp = Instance.new("BodyPosition")
-                    bp.Name = "AutoHover"
-                    bp.MaxForce = Vector3.new(50000, 50000, 50000)
-                    bp.P = 10000
-                    bp.D = 1000
-                    bp.Parent = hrp
-                end
-                bp.Position = Vector3.new(hrp.Position.X, enemy.pos.Y + Config.HoverHeight, hrp.Position.Z)
-                hrp.CFrame = CFrame.new(hrp.Position, Vector3.new(enemy.pos.X, hrp.Position.Y, enemy.pos.Z))
-                
+            -- Sempre usa o BodyVelocity para voar liso até o inimigo
+            if not bp then
+                bp = Instance.new("BodyPosition")
+                bp.Name = "AutoHover"
+                bp.MaxForce = Vector3.new(50000, 50000, 50000)
+                bp.P = 10000
+                bp.D = 1000
+                bp.Parent = hrp
+            end
+            
+            -- Define a posição de destino. Se estiver longe, voa na altura do inimigo. Se perto, mantém o hover.
+            local targetY = (dist > Config.AttackDistance) and enemy.pos.Y or (enemy.pos.Y + Config.HoverHeight)
+            bp.Position = Vector3.new(enemy.pos.X, targetY, enemy.pos.Z)
+            
+            -- Olha para o inimigo
+            hrp.CFrame = CFrame.new(hrp.Position, Vector3.new(enemy.pos.X, hrp.Position.Y, enemy.pos.Z))
+            
+            if dist <= Config.AttackDistance then
                 local tool = char:FindFirstChild(Config.WeaponName) or char:FindFirstChildOfClass("Tool")
                 if tool then 
                     local handle = tool:FindFirstChild("Handle")
-                    if handle then handle.Size = Vector3.new(8, 8, 8) end
+                    if handle then handle.Size = Vector3.new(12, 12, 12) end
                     pcall(function() tool:Activate() end) 
                 end
             end
         else
-            for _, part in pairs(char:GetDescendants()) do
-                if part:IsA("BasePart") then part.CanCollide = true end
-            end
-            if bp then bp:Destroy() end
-            humanoid.WalkSpeed = 16
-            statusTxt.Text = "Status: Aguardando..."
+            -- Se não tiver inimigo, ele só flutua parado no ar, esperando o próximo spawnar
+            statusTxt.Text = "Status: Aguardando Inimigo..."
             targetTxt.Text = "Alvo: -"
         end
     end
 end)
 
--- ⭐ Loop do Waypoint (VOO 3D - SOBE E DESCE) ⭐
+-- ⭐ Loop do Waypoint ⭐
 task.spawn(function()
     while task.wait(0.1) do
         if not isGoingToWaypoint or not currentWaypointTarget then continue end
@@ -1160,4 +1168,4 @@ topBar.InputEnded:Connect(function(input)
     end
 end)
 
-print("⚔️ RootsGame Script Carregado (Com Minerador Preciso)!")
+print("⚔️ RootsGame Script Carregado (Voo Contínuo Ativo)!")
