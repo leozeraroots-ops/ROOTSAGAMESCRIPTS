@@ -1,5 +1,5 @@
 -- ==========================================
--- ROOTSGAME SCRIPT (MINERADOR COM HITBOX)
+-- ROOTSGAME SCRIPT (MINERADOR COM HITBOX - SEM CAMBALHOTA)
 -- ==========================================
 local Players = game:GetService("Players")
 local Workspace = game:WaitForChild("Workspace")
@@ -14,10 +14,8 @@ local camera = Workspace.CurrentCamera
 
 GuiService.SelectedObject = nil
 
--- NOME DO ARQUIVO DE SAVE
 local SAVE_FILE = "RootsGame_Data.txt"
 
--- CONFIGURAÇÕES PADRÃO
 local DefaultConfig = {
     WeaponName = "Pumpkin Reaper Greatsword",
     AttackDistance = 18,     
@@ -27,7 +25,6 @@ local DefaultConfig = {
     MinerSpeed = 25
 }
 
--- STATE (GERAL)
 local Config = table.clone(DefaultConfig)
 local savedWaypoints = {}
 local isRunning = false
@@ -38,7 +35,6 @@ local isMinimized = false
 local currentWaypointTarget = nil
 local isGoingToWaypoint = false
 
--- STATE (MINERAÇÃO)
 local isMining = false
 local mineTarget = nil
 local minedCounts = {crystal = 0, diamond = 0, gold = 0, iron = 0, coal = 0}
@@ -87,9 +83,7 @@ local function showNotification()
     notifFrame.BackgroundTransparency = 0.2
     notifStroke.Transparency = 0.2
     notifText.TextTransparency = 0
-    
     task.wait(2) 
-    
     notifFrame.BackgroundTransparency = 1
     notifStroke.Transparency = 1
     notifText.TextTransparency = 1
@@ -108,7 +102,6 @@ local function saveAllData()
         for name, pos in pairs(savedWaypoints) do
             dataToSave.Waypoints[name] = {pos.X, pos.Y, pos.Z}
         end
-        
         local jsonData = HttpService:JSONEncode(dataToSave)
         writefile(SAVE_FILE, jsonData)
         showNotification()
@@ -117,7 +110,7 @@ end
 
 local function loadAllData()
     if readfile and isfile and isfile(SAVE_FILE) then
-        local success, err = pcall(function()
+        pcall(function()
             local jsonData = readfile(SAVE_FILE)
             local decoded = HttpService:JSONDecode(jsonData)
             
@@ -1046,7 +1039,6 @@ task.spawn(function()
         local bp = hrp:FindFirstChild("AutoHover")
 
         -- ⭐ VOO CONTÍNUO ⭐
-        -- O personagem fica com PlatformStand true o tempo todo para não cair e nem subir/descer
         humanoid.PlatformStand = true 
         for _, part in pairs(char:GetDescendants()) do
             if part:IsA("BasePart") then part.CanCollide = false end
@@ -1058,7 +1050,6 @@ task.spawn(function()
             
             local dist = (hrp.Position - enemy.pos).Magnitude
             
-            -- Sempre usa o BodyVelocity para voar liso até o inimigo
             if not bp then
                 bp = Instance.new("BodyPosition")
                 bp.Name = "AutoHover"
@@ -1068,25 +1059,34 @@ task.spawn(function()
                 bp.Parent = hrp
             end
             
-            -- Define a posição de destino. Se estiver longe, voa na altura do inimigo. Se perto, mantém o hover.
             local targetY = (dist > Config.AttackDistance) and enemy.pos.Y or (enemy.pos.Y + Config.HoverHeight)
             bp.Position = Vector3.new(enemy.pos.X, targetY, enemy.pos.Z)
             
-            -- Olha para o inimigo
-            hrp.CFrame = CFrame.new(hrp.Position, Vector3.new(enemy.pos.X, hrp.Position.Y, enemy.pos.Z))
+            -- ⭐ CORREÇÃO DA CAMBALHOTA: Zera rotação e usa CFrame com lookAt suave
+            hrp.AssemblyAngularVelocity = Vector3.zero
+            hrp.AssemblyLinearVelocity = Vector3.zero
+            
+            local lookAt = CFrame.new(hrp.Position, Vector3.new(enemy.pos.X, hrp.Position.Y, enemy.pos.Z))
+            hrp.CFrame = CFrame.new(hrp.Position) * CFrame.Angles(0, lookAt.Rotation.Y, 0) -- Mantém só a rotação Y
             
             if dist <= Config.AttackDistance then
                 local tool = char:FindFirstChild(Config.WeaponName) or char:FindFirstChildOfClass("Tool")
                 if tool then 
                     local handle = tool:FindFirstChild("Handle")
-                    if handle then handle.Size = Vector3.new(12, 12, 12) end
+                    if handle then 
+                        handle.Size = Vector3.new(12, 12, 12)
+                        handle.CanCollide = false -- ⭐ Evita que a arma empurre o corpo
+                    end
                     pcall(function() tool:Activate() end) 
                 end
             end
         else
-            -- Se não tiver inimigo, ele só flutua parado no ar, esperando o próximo spawnar
             statusTxt.Text = "Status: Aguardando Inimigo..."
             targetTxt.Text = "Alvo: -"
+            -- ⭐ Zera rotação quando não tem inimigo também
+            if hrp then
+                hrp.AssemblyAngularVelocity = Vector3.zero
+            end
         end
     end
 end)
@@ -1121,7 +1121,9 @@ task.spawn(function()
             local direction = (currentWaypointTarget - hrp.Position).Unit
             bv.Velocity = direction * Config.MoveSpeed 
             
-            hrp.CFrame = CFrame.new(hrp.Position, Vector3.new(currentWaypointTarget.X, hrp.Position.Y, currentWaypointTarget.Z))
+            hrp.AssemblyAngularVelocity = Vector3.zero
+            local lookAt = CFrame.new(hrp.Position, Vector3.new(currentWaypointTarget.X, hrp.Position.Y, currentWaypointTarget.Z))
+            hrp.CFrame = CFrame.new(hrp.Position) * CFrame.Angles(0, lookAt.Rotation.Y, 0)
         else
             local bv = hrp:FindFirstChild("AutoFly")
             if bv then bv:Destroy() end
@@ -1168,4 +1170,4 @@ topBar.InputEnded:Connect(function(input)
     end
 end)
 
-print("⚔️ RootsGame Script Carregado (Voo Contínuo Ativo)!")
+print("⚔️ RootsGame Script Carregado (Voo Contínuo + Anti-Cambalhota)!")
