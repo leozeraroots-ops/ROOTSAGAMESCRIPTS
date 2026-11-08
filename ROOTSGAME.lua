@@ -1,5 +1,5 @@
 -- ==========================================
--- ROOTSGAME SCRIPT (COMPLETO - v3.4)
+-- ROOTSGAME SCRIPT (COMPLETO - v3.8)
 -- ==========================================
 local Players = game:GetService("Players")
 local Workspace = game:WaitForChild("Workspace")
@@ -25,7 +25,9 @@ local DefaultConfig = {
     HoverHeight = 10,        
     MoveSpeed = 25,          
     MinerSpeed = 25,
-    WalkSpeed = 16
+    WalkSpeed = 16,
+    JumpPower = 50,
+    JumpHeight = 7.2
 }
 
 local Config = table.clone(DefaultConfig)
@@ -50,7 +52,7 @@ local priorities = {crystal = 5, diamond = 4, gold = 3, iron = 2, coal = 1}
 local collecting = false
 
 local isAntiAfk = false
-local isInfJump = false
+local isFreeze = false
 local isESP = false
 local isNoclip = false
 local isFly = false
@@ -187,7 +189,7 @@ local title = Instance.new("TextLabel")
 title.Size = UDim2.new(1, -80, 1, 0)
 title.Position = UDim2.new(0, 10, 0, 0)
 title.BackgroundTransparency = 1
-title.Text = "RootsGame Script v3.4"
+title.Text = "RootsGame Script v3.8"
 title.TextColor3 = Color3.fromRGB(240, 240, 240)
 title.Font = Enum.Font.GothamBold
 title.TextSize = 13
@@ -655,12 +657,13 @@ local function createVarBtn(text, posX, posY)
 end
 
 local antiAfkBtn = createVarBtn("Anti-AFK", 0.02, 10)
-local infJumpBtn = createVarBtn("Inf Jump", 0.52, 10)
+local freezeBtn = createVarBtn("Freeze", 0.52, 10)
 local espBtn = createVarBtn("ESP", 0.02, 50)
 local noclipBtn = createVarBtn("Noclip", 0.52, 50)
 local flyBtn = createVarBtn("Fly", 0.02, 90)
 local serverHopBtn = createVarBtn("Server Hop", 0.52, 90)
 
+-- ⭐ BARRA DE SPEED
 local speedLabel = Instance.new("TextLabel")
 speedLabel.Size = UDim2.new(1, -20, 0, 20)
 speedLabel.Position = UDim2.new(0, 10, 0, 130)
@@ -726,6 +729,77 @@ UserInputService.InputChanged:Connect(function(input)
     end
 end)
 
+-- ⭐ BARRA DE JUMP POWER
+local jumpLabel = Instance.new("TextLabel")
+jumpLabel.Size = UDim2.new(1, -20, 0, 20)
+jumpLabel.Position = UDim2.new(0, 10, 0, 170)
+jumpLabel.BackgroundTransparency = 1
+jumpLabel.Text = "Força/Altura do Pulo: " .. Config.JumpPower
+jumpLabel.TextColor3 = Color3.fromRGB(200, 220, 255)
+jumpLabel.Font = Enum.Font.GothamBold
+jumpLabel.TextSize = 11
+jumpLabel.TextXAlignment = Enum.TextXAlignment.Left
+jumpLabel.Parent = variedPage
+
+local jumpSlider = Instance.new("TextButton")
+jumpSlider.Size = UDim2.new(1, -20, 0, 10)
+jumpSlider.Position = UDim2.new(0, 10, 0, 190)
+jumpSlider.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+jumpSlider.Text = ""
+jumpSlider.Parent = variedPage
+local jSliderCorner = Instance.new("UICorner")
+jSliderCorner.CornerRadius = UDim.new(0, 5)
+jSliderCorner.Parent = jumpSlider
+
+local jumpFill = Instance.new("Frame")
+jumpFill.Size = UDim2.new(Config.JumpPower/200, 0, 1, 0)
+jumpFill.BackgroundColor3 = Color3.fromRGB(40, 180, 100)
+jumpFill.BorderSizePixel = 0
+jumpFill.Parent = jumpSlider
+local jFillCorner = Instance.new("UICorner")
+jFillCorner.CornerRadius = UDim.new(0, 5)
+jFillCorner.Parent = jumpFill
+
+local isDraggingJump = false
+local function updateJump(input)
+    local mouseX = input.Position.X
+    local relativeX = math.clamp(mouseX - jumpSlider.AbsolutePosition.X, 0, jumpSlider.AbsoluteSize.X)
+    local percentage = relativeX / jumpSlider.AbsoluteSize.X
+    local jumpValue = math.floor(percentage * 200)
+    
+    jumpFill.Size = UDim2.new(percentage, 0, 1, 0)
+    jumpLabel.Text = "Força/Altura do Pulo: " .. jumpValue
+    Config.JumpPower = jumpValue
+    Config.JumpHeight = jumpValue / 5
+    
+    local char = player.Character
+    if char then
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        if hum then 
+            hum.UseJumpPower = true
+            hum.JumpPower = jumpValue 
+            hum.JumpHeight = jumpValue / 5
+        end
+    end
+end
+
+jumpSlider.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        isDraggingJump = true
+        updateJump(input)
+    end
+end)
+jumpSlider.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        isDraggingJump = false
+    end
+end)
+UserInputService.InputChanged:Connect(function(input)
+    if isDraggingJump and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        updateJump(input)
+    end
+end)
+
 local function toggleUI(btn, state)
     btn.Text = btn.Text:gsub(state and ": OFF" or ": ON", state and ": ON" or ": OFF")
     btn.BackgroundColor3 = state and Color3.fromRGB(40, 180, 100) or Color3.fromRGB(50, 50, 50)
@@ -745,16 +819,35 @@ antiAfkBtn.MouseButton1Click:Connect(function()
     end
 end)
 
-infJumpBtn.MouseButton1Click:Connect(function()
-    isInfJump = not isInfJump
-    toggleUI(infJumpBtn, isInfJump)
-end)
-
-UserInputService.JumpRequest:Connect(function()
-    if isInfJump then
-        local char = player.Character
-        local hum = char and char:FindFirstChildOfClass("Humanoid")
-        if hum then hum:ChangeState(Enum.HumanoidStateType.Jumping) end
+-- ⭐ FREEZE CORRIGIDO (Estilo Infinite Yield - BodyPosition + BodyGyro)
+freezeBtn.MouseButton1Click:Connect(function()
+    isFreeze = not isFreeze
+    toggleUI(freezeBtn, isFreeze)
+    
+    local char = player.Character
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    
+    if isFreeze then
+        if hrp then
+            -- Cria a trava de posição e rotação
+            local bp = Instance.new("BodyPosition")
+            bp.Name = "Freeze_BP"
+            bp.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+            bp.Position = hrp.Position
+            bp.Parent = hrp
+            
+            local bg = Instance.new("BodyGyro")
+            bg.Name = "Freeze_BG"
+            bg.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
+            bg.Parent = hrp
+        end
+    else
+        if hrp then
+            local bp = hrp:FindFirstChild("Freeze_BP")
+            if bp then bp:Destroy() end
+            local bg = hrp:FindFirstChild("Freeze_BG")
+            if bg then bg:Destroy() end
+        end
     end
 end)
 
@@ -763,20 +856,35 @@ espBtn.MouseButton1Click:Connect(function()
     toggleUI(espBtn, isESP)
     if isESP then
         espFolder = Instance.new("Folder", Workspace)
-        espFolder.Name = "ESP_Highlights"
-        for _, obj in pairs(Workspace:GetDescendants()) do
-            if obj:IsA("Model") and obj:FindFirstChild("Humanoid") and not obj:FindFirstChild("ESP_Highlight") then
-                local h = Instance.new("Highlight")
-                h.Name = "ESP_Highlight"
-                h.FillColor = Color3.fromRGB(255, 0, 0)
-                h.OutlineColor = Color3.fromRGB(255, 255, 255)
-                h.Parent = obj
+        espFolder.Name = "ESP_Names"
+        
+        local function addESP(obj)
+            if obj:IsA("Model") and obj:FindFirstChild("Humanoid") and not obj:FindFirstChild("ESP_Name") then
+                local billboard = Instance.new("BillboardGui")
+                billboard.Name = "ESP_Name"
+                billboard.Size = UDim2.new(0, 200, 0, 50)
+                billboard.StudsOffset = Vector3.new(0, 3, 0)
+                billboard.AlwaysOnTop = true
+                billboard.Parent = obj
+                
+                local text = Instance.new("TextLabel")
+                text.Size = UDim2.new(1, 0, 1, 0)
+                text.BackgroundTransparency = 1
+                text.Text = obj.Name
+                text.TextColor3 = Color3.fromRGB(255, 255, 255)
+                text.TextStrokeTransparency = 0
+                text.Font = Enum.Font.GothamBold
+                text.TextScaled = true
+                text.Parent = billboard
             end
         end
+        
+        for _, obj in pairs(Workspace:GetDescendants()) do addESP(obj) end
+        Workspace.DescendantAdded:Connect(addESP)
     else
         if espFolder then espFolder:Destroy() end
         for _, obj in pairs(Workspace:GetDescendants()) do
-            local h = obj:FindFirstChild("ESP_Highlight")
+            local h = obj:FindFirstChild("ESP_Name")
             if h then h:Destroy() end
         end
     end
@@ -1248,12 +1356,22 @@ task.spawn(function()
     end
 end)
 
+-- ⭐ LOOP DE VERIFICAÇÃO (Speed + Jump)
 task.spawn(function()
     while task.wait(0.1) do
         local char = player.Character
         local hum = char and char:FindFirstChildOfClass("Humanoid")
-        if hum and hum.WalkSpeed ~= Config.WalkSpeed and not isMining and not isRunning then
-            hum.WalkSpeed = Config.WalkSpeed
+        if hum then
+            if hum.WalkSpeed ~= Config.WalkSpeed and not isMining and not isRunning then
+                hum.WalkSpeed = Config.WalkSpeed
+            end
+            if hum.JumpPower ~= Config.JumpPower then
+                hum.UseJumpPower = true 
+                hum.JumpPower = Config.JumpPower
+            end
+            if hum.JumpHeight ~= Config.JumpHeight then
+                hum.JumpHeight = Config.JumpHeight
+            end
         end
     end
 end)
@@ -1537,4 +1655,4 @@ topBar.InputEnded:Connect(function(input)
     end
 end)
 
-print("⚔️ RootsGame Script v3.4 Carregado (Com Barra de Altura + Auto Atacar)!")
+print("⚔️ RootsGame Script v3.8 Carregado (Com Freeze Infinite Yield + JumpPower + ESP)!")
